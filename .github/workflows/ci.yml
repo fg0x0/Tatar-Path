@@ -20,6 +20,10 @@ jobs:
       - name: Concept document invariants
         run: python3 scripts/check-concept.py docs/concept.html
 
+      # README-ийн хоёр хэлний хэсгийн бүтэц зөрсөн эсэх.
+      - name: README bilingual parity
+        run: python3 scripts/check-readme-parity.py
+
       - name: README links resolve
         run: |
           python3 - <<'PY'
