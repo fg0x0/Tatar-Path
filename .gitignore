@@ -1,0 +1,11 @@
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Rendered or exported copies of the concept document
+*.pdf
+*.png.tmp

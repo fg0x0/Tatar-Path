@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<title>Tatar Path</title>
+<meta name="description" content="Tatar Path — BloodHound графыг эрэмбэлсэн 'эхлэх цэг' болон бэлэн командаар хувиргах attack-path triage engine-ийн дизайн ноорог.">
+<script>try{var t=localStorage.getItem('tatar-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark light;
+    --bg:#0e1016;--bg2:#151922;--card:#1a1f2b;--card2:#202634;
+    --border:#2a3140;--border2:#3a4356;--tx:#e7ebf3;--tx2:#aeb7c7;--tx3:#7a8496;
+    --acc:#e5533c;--acc2:#ff7a5c;--acc-bg:#2e1712;
+    --neo:#2dd4bf;--neo-bg:#0f2e2b;--eng:#8b7cff;--eng-bg:#241f3d;--out:#4ade80;--out-bg:#122e1c;
+    --warn:#ff9d42;--warn-bg:#33260f;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;--sans:'Golos Text','Rubik',system-ui,sans-serif;--head:'Rubik','Golos Text',system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+    --bg:#f5f6fa;--bg2:#fff;--card:#fff;--card2:#f6f8fc;--border:#e4e8f0;--border2:#ccd4e2;
+    --tx:#14181f;--tx2:#475164;--tx3:#788299;
+    --acc:#d8432c;--acc2:#e5533c;--acc-bg:#fdeae6;--neo:#0d9488;--neo-bg:#e0f5f2;
+    --eng:#6b4dff;--eng-bg:#efeaff;--out:#16a34a;--out-bg:#e4f7ea;
+    --warn:#b45309;--warn-bg:#fdf1e0;
+  }}
+  :root[data-theme="light"]{
+    --bg:#f5f6fa;--bg2:#fff;--card:#fff;--card2:#f6f8fc;--border:#e4e8f0;--border2:#ccd4e2;
+    --tx:#14181f;--tx2:#475164;--tx3:#788299;
+    --acc:#d8432c;--acc2:#e5533c;--acc-bg:#fdeae6;--neo:#0d9488;--neo-bg:#e0f5f2;
+    --eng:#6b4dff;--eng-bg:#efeaff;--out:#16a34a;--out-bg:#e4f7ea;
+    --warn:#b45309;--warn-bg:#fdf1e0;
+  }
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);line-height:1.62;font-size:16px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 16px 90px}
+  header{padding:46px 0 26px;border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;color:#fff;font-size:19px}
+  .kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0}
+  h1{font-family:var(--head);font-size:clamp(28px,5.2vw,42px);line-height:1.12;margin:0 0 12px;font-weight:700;letter-spacing:-.02em}
+  .sub{color:var(--tx2);font-size:18px;max-width:68ch;margin:0}
+  .meta{margin-top:16px;font-family:var(--mono);font-size:12px;color:var(--tx3)}
+  .toc{position:sticky;top:0;z-index:5;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;background:var(--bg);border-bottom:1px solid var(--border);padding:9px 52px 9px 0;margin-bottom:6px}
+  .toc::-webkit-scrollbar{display:none}
+  .toc a{flex:0 0 auto;font-family:var(--mono);font-size:11.5px;color:var(--tx3);text-decoration:none;padding:5px 9px;border-radius:7px;white-space:nowrap}
+  .toc a:hover{color:var(--tx);background:var(--card)}
+  .toc a:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+  h2{font-family:var(--head);font-size:clamp(20px,3.4vw,26px);margin:50px 0 8px;font-weight:600;letter-spacing:-.01em;scroll-margin-top:56px}
+  h2 .n{font-family:var(--mono);font-size:14px;color:var(--acc);margin-right:10px}
+  h3{font-family:var(--head);font-size:16px;margin:20px 0 6px;font-weight:600}
+  p{margin:0 0 14px}.lead{color:var(--tx2);max-width:75ch}
+  a{color:var(--acc)}
+  .oneliner{background:var(--acc-bg);border:1px solid var(--acc);border-radius:14px;padding:20px 22px;margin:20px 0;font-size:17px}
+  .oneliner b{color:var(--acc)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  @media(max-width:720px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+  .card h3{margin-top:0}.card p{font-size:14.5px;color:var(--tx2);margin:0}
+  .pain{border-left:3px solid var(--tx3)}.win{border-left:3px solid var(--out)}.no{border-left:3px solid var(--warn)}
+  figure{margin:22px 0;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  figure:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  figure svg{display:block;min-width:680px;width:100%;height:auto}
+  figcaption{color:var(--tx3);font-size:12.5px;text-align:center;margin-top:8px;font-family:var(--mono)}
+  @media(max-width:720px){figcaption::before{content:"← гүйлгэж хараарай →";display:block;color:var(--tx3);margin-bottom:4px}}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{font-family:var(--head);font-size:12px;letter-spacing:.03em;text-transform:uppercase;color:var(--tx3);font-weight:600;background:var(--card2)}
+  td b{color:var(--tx)}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:500}
+  .lo{background:var(--out-bg);color:var(--out)}.me{background:var(--warn-bg);color:var(--warn)}.hi{background:var(--acc-bg);color:var(--acc)}
+  pre{background:#0a0d13;border:1px solid var(--border2);border-radius:10px;padding:15px;overflow-x:auto;margin:8px 0 14px;font-family:var(--mono);font-size:12.5px;line-height:1.65;color:#d7deea}
+  pre .c{color:#6b7689}pre .k{color:#7dd3fc}pre .s{color:#a5e88a}pre .v{color:#ffc96b}
+  code:not(pre code){font-family:var(--mono);font-size:.86em;background:var(--card2);border:1px solid var(--border);padding:1px 6px;border-radius:5px}
+  ol.mvp{counter-reset:m;list-style:none;padding:0;margin:12px 0}
+  ol.mvp li{position:relative;padding:9px 0 9px 40px;border-top:1px solid var(--border);color:var(--tx2);font-size:14.5px}
+  ol.mvp li:first-child{border-top:none}
+  ol.mvp li::before{counter-increment:m;content:counter(m);position:absolute;left:0;top:8px;width:26px;height:26px;border-radius:7px;background:var(--card);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;color:var(--acc);font-size:13px}
+  .road{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+  @media(max-width:720px){.road{grid-template-columns:1fr 1fr}}
+  .ph{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:13px}
+  .ph .t{font-family:var(--mono);font-size:11px;color:var(--acc);letter-spacing:.05em}
+  .ph .h{font-weight:600;font-size:14px;margin:4px 0}.ph p{font-size:12.5px;color:var(--tx3);margin:0}
+  .themebtn{position:fixed;top:14px;right:14px;z-index:10;background:var(--card);border:1px solid var(--border2);color:var(--tx2);border-radius:9px;width:38px;height:38px;cursor:pointer;font-size:16px}
+  .themebtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--border);color:var(--tx3);font-size:13px}
+  .muted{color:var(--tx3);font-size:13px}
+  .callout{background:var(--warn-bg);border:1px solid var(--warn);border-radius:12px;padding:16px 20px;margin:18px 0}
+  .callout b{color:var(--warn)}
+  @media print{
+    :root,:root[data-theme="dark"]{--bg:#fff;--bg2:#fff;--card:#fff;--card2:#f4f5f7;
+      --border:#c8ccd4;--border2:#aab2c0;--tx:#000;--tx2:#333;--tx3:#555}
+    body{background:#fff;color:#000;font-size:11pt}
+    .themebtn,.toc{display:none!important}
+    pre{background:#f4f5f7;color:#111;border-color:#c8ccd4;white-space:pre-wrap;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    pre .c{color:#555}pre .k{color:#0b4f8a}pre .s{color:#1d6b2a}pre .v{color:#8a5a00}
+    figure{overflow:visible;border-color:#c8ccd4;break-inside:avoid}
+    figure svg{min-width:0}
+    figcaption::before{content:""!important}
+    h2{break-after:avoid}
+    table,.card,.ph,.oneliner,.callout{break-inside:avoid}
+    @page{margin:16mm}
+  }
+</style>
+</head>
+<body>
+<button type="button" class="themebtn" id="tt" aria-pressed="false" aria-label="Гэрэл/Бараан сэлгэх"><span aria-hidden="true">◐</span></button>
+<div class="wrap">
+<header>
+  <div class="brand"><div class="logo">TP</div><p class="kick">Tatar Path · дизайн ноорог</p></div>
+  <h1>BloodHound графыг “хаанаас эхлэх вэ” болгож хувиргана</h1>
+  <p class="sub">Red team-ийн үед SharpHound → BloodHound олон зуун замыг шиддэг. Tatar Path үүнийг эрэмбэлсэн “эхлэх цэг” + бэлэн команд болгож, операторт ганц дараагийн зөв алхмыг зааж өгнө.</p>
+  <p class="meta">PSSA · Tatar экосистем · зорилтот хэрэглэгч: red team оператор · 2026-09-24</p>
+</header>
+
+<nav class="toc" aria-label="Хэсгүүд">
+  <a href="#problem">01 Асуудал</a>
+  <a href="#solution">02 Шийдэл</a>
+  <a href="#differentiator">03 Шаантаг</a>
+  <a href="#dataflow">04 Дата урсгал</a>
+  <a href="#scoring">05 Оноолол</a>
+  <a href="#output">06 Гаралт</a>
+  <a href="#mvp">07 MVP</a>
+  <a href="#roadmap">08 Замын зураг</a>
+  <a href="#ecosystem">09 Экосистем</a>
+</nav>
+
+<main>
+<h2 id="problem"><span class="n">01</span>Асуудал</h2>
+<p class="lead">BloodHound хүчтэй ч гэсэн операторт хэт их ачаалал өгдөг. Гол өвдөлтүүд:</p>
+<div class="cols">
+  <div class="card pain"><h3>Хэт ерөнхий</h3><p>“Бүх зам” харагдана. Аль нь хамгийн эхэнд хийх ёстой, аль нь дэмий вэ гэдэг тодорхойгүй.</p></div>
+  <div class="card pain"><h3>Hop тоогоор эрэмбэлдэг</h3><p>Shortest path зөвхөн үсрэлтийн тоог хардаг — бодит хялбар/чимээгүй байдлыг тооцдоггүй.</p></div>
+  <div class="card pain"><h3>“Start here” алга</h3><p>Эзэмшсэн байрлалаасаа хамааран “одоо яг юуг довтлох вэ” гэдгийг зааж өгдөггүй.</p></div>
+  <div class="card pain"><h3>Граф ≠ үйлдэл</h3><p>Зам харуулна, гэхдээ тухайн орчны нэрсээр бэлэн команд болгож өгдөггүй. Оператор гараар угсарна.</p></div>
+</div>
+
+<h2 id="solution"><span class="n">02</span>Шийдэл — нэг өгүүлбэрээр</h2>
+<div class="oneliner">Tatar Path бол <b>BloodHound-ийн датаг уншиж</b>, ирмэг бүрийг бодит exploitability-ээр жинлээд, эзэмшсэн олонлогоос хамгийн бага зардлын замыг олж, <b>“эхлээд энэ N цэгийг довтол” гэсэн эрэмбэтэй жагсаалтыг тухайн орчны нэрсээр бөглөсөн бэлэн командтайгаар</b> гаргадаг triage давхарга.</div>
+
+<h2 id="differentiator"><span class="n">03</span>Ялгарах шаантаг</h2>
+<p class="lead">Шударгаар: граф цуглуулах, хадгалах, статикаар эрэмбэлэх нь аль хэдийн шийдэгдсэн. Tatar Path-ийн шинэлэг тал өөр давхаргад байна.</p>
+<div class="cols">
+  <div class="card no"><h3>Энэ БИШ (commodity)</h3><p>Цуглуулга (SharpHound) ба хадгалалт (Neo4j)-ыг дахин зохиохгүй. Графыг зурах, бүх замыг жагсаах, статик тайлан гаргах ч бас биш — зөвхөн <b>reasoning давхаргыг</b> нэмнэ.</p></div>
+  <div class="card win"><h3>Эзэмшсэн олонлогт суурилсан “дараагийн алхам”</h3><p>“Би X-г эзэмшсэн → дараа нь ЯГ Y” гэж динамикаар ганц дараагийн хамгийн зөв алхмыг өгнө. Статик бус.</p></div>
+  <div class="card win"><h3>Орчны нэрсээр бөглөсөн бэлэн команд</h3><p>Граф → playbook. Бодит объектын нэртэй <code>nxc/certipy/Rubeus</code> команд + OpSec тэмдэглэл.</p></div>
+  <div class="card win"><h3>Офлайн, Монгол, Tatar экосистем</h3><p>Reasoning-ийг локал Ollama-гаар офлайн ажиллуулж, операторын гаралтыг Монголоор өгнө.</p></div>
+  <div class="card win"><h3>Effort→Impact эрэмбэ</h3><p>Hop биш, хурдан ялалт (quick win) ба чимээгүй байдлаар эрэмбэлнэ.</p></div>
+</div>
+<h3>Prior art (хэсэгчилсэн, давхардуулахгүйн тулд)</h3>
+<table>
+  <thead><tr><th>Одоо байгаа</th><th>Юу хийдэг</th><th>Дутуу тал</th></tr></thead>
+  <tbody>
+    <tr><td>BloodHound CE pathfinding</td><td>Хоёр зангилааны хоорондох замыг хайж, визуалчилна</td><td>Hop-ын тоогоор эрэмбэлдэг; “эхлээд алийг” гэдэг эрэмбэ, бэлэн команд байхгүй</td></tr>
+    <tr><td>GoodHound</td><td>Замыг business-cost-оор эрэмбэлж тайлан (CSV) гаргана</td><td>Нэг удаагийн статик тайлан — эзэмшсэн олонлог өөрчлөгдөхөд дахин эрэмбэлэхгүй</td></tr>
+    <tr><td>AD Miner</td><td>Домэйныг бүхэлд аудитлаж, HTML тайлан + метрик</td><td>Аудит/тайлангийн зориулалттай — операторын дараагийн алхмыг заадаггүй</td></tr>
+    <tr><td>PlumHound</td><td>Cypher query-г бэлэн тайлан болгоно</td><td>Query runner — жинлэлт, эрэмбэ, OpSec тооцоолол нь операторт үлддэг</td></tr>
+  </tbody>
+</table>
+<p class="muted">Ялгарах шаантаг = <b>эзэмшсэн олонлог + ирмэгийн жинлэлт + OpSec</b>-ийг НЭГ эрэмбэнд нэгтгээд, дараагийн алхмыг бэлэн командаар өгдөг оператор давхарга.</p>
+
+<h2 id="dataflow"><span class="n">04</span>Дата урсгал</h2>
+<figure tabindex="0" role="region" aria-labelledby="fig-dataflow">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" font-family="'Golos Text',sans-serif">
+  <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#7a8496"/></marker></defs>
+  <!-- collect -->
+  <rect x="20" y="60" width="150" height="80" rx="12" fill="var(--card)" stroke="var(--border2)"/>
+  <text x="95" y="92" text-anchor="middle" fill="var(--tx)" font-size="14" font-weight="700">SharpHound</text>
+  <text x="95" y="112" text-anchor="middle" fill="var(--tx3)" font-size="11">AD цуглуулга (.zip)</text>
+  <!-- neo4j -->
+  <rect x="200" y="60" width="150" height="80" rx="12" fill="var(--neo-bg)" stroke="var(--neo)"/>
+  <text x="275" y="92" text-anchor="middle" fill="var(--tx)" font-size="14" font-weight="700">BloodHound</text>
+  <text x="275" y="112" text-anchor="middle" fill="var(--tx3)" font-size="11">Neo4j граф</text>
+  <!-- engine -->
+  <rect x="380" y="34" width="230" height="132" rx="14" fill="var(--eng-bg)" stroke="var(--eng)" stroke-width="1.6"/>
+  <text x="495" y="58" text-anchor="middle" fill="var(--eng)" font-size="12" font-family="'JetBrains Mono',monospace" letter-spacing="1">TATAR PATH ENGINE</text>
+  <text x="495" y="82" text-anchor="middle" fill="var(--tx)" font-size="12.5">① Эзэмшсэн олонлог (owned)</text>
+  <text x="495" y="102" text-anchor="middle" fill="var(--tx)" font-size="12.5">② Ирмэгийн жинлэлт (cost)</text>
+  <text x="495" y="122" text-anchor="middle" fill="var(--tx)" font-size="12.5">③ Хамгийн бага зардлын зам</text>
+  <text x="495" y="142" text-anchor="middle" fill="var(--tx)" font-size="12.5">④ Reasoner (Ollama, офлайн)</text>
+  <!-- output -->
+  <rect x="640" y="60" width="240" height="80" rx="12" fill="var(--out-bg)" stroke="var(--out)"/>
+  <text x="760" y="88" text-anchor="middle" fill="var(--tx)" font-size="14" font-weight="700">“Эхлэх цэг” жагсаалт</text>
+  <text x="760" y="108" text-anchor="middle" fill="var(--tx3)" font-size="11">эрэмбэ + бэлэн команд</text>
+  <text x="760" y="124" text-anchor="middle" fill="var(--tx3)" font-size="11">+ OpSec тэмдэглэл</text>
+  <!-- arrows -->
+  <path d="M170 100 L200 100" stroke="#7a8496" stroke-width="1.4" marker-end="url(#ar)"/>
+  <path d="M350 100 L380 100" stroke="#7a8496" stroke-width="1.4" marker-end="url(#ar)"/>
+  <path d="M610 100 L640 100" stroke="#7a8496" stroke-width="1.4" marker-end="url(#ar)"/>
+  <!-- owned input -->
+  <rect x="380" y="200" width="230" height="46" rx="10" fill="var(--card)" stroke="var(--border2)"/>
+  <text x="495" y="221" text-anchor="middle" fill="var(--tx2)" font-size="11.5">Оператор: “Би одоо юуг эзэмшиж байна”</text>
+  <text x="495" y="237" text-anchor="middle" fill="var(--tx3)" font-size="10.5">owned users/hosts</text>
+  <path d="M495 200 L495 166" stroke="var(--eng)" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+</svg>
+<figcaption id="fig-dataflow">Цуглуулга ба хадгалалтыг дахин зохиохгүй — зөвхөн reasoning давхаргыг нэмнэ</figcaption>
+</figure>
+
+<h2 id="scoring"><span class="n">05</span>Ирмэгийн онооллын загвар</h2>
+<p class="lead">Ирмэг (attack technique) бүрийг 1–5 оноогоор үнэлж, эрэмбийн оноо гаргана. Бага хүчин чармайлт + бага чимээ + өндөр найдвар = дээгүүр эрэмбэ.</p>
+<table>
+  <thead><tr><th>Ирмэг (жишээ)</th><th>Хүчин чармайлт</th><th>Чимээ (EDR)</th><th>Найдвар</th><th>Нөлөө</th><th>Эрэмбэ</th></tr></thead>
+  <tbody>
+    <tr><td><b>Kerberoast</b> (сул нууц үгтэй SPN)</td><td><span class="tag lo">Бага</span></td><td><span class="tag lo">Бага</span></td><td><span class="tag me">Дунд</span></td><td><span class="tag me">Дунд</span></td><td><b>Өндөр</b></td></tr>
+    <tr><td><b>AS-REP roast</b> (preauth off)</td><td><span class="tag lo">Бага</span></td><td><span class="tag lo">Бага</span></td><td><span class="tag me">Дунд</span></td><td><span class="tag me">Дунд</span></td><td><b>Өндөр</b></td></tr>
+    <tr><td><b>ACL abuse</b> (GenericAll/WriteDacl)</td><td><span class="tag me">Дунд</span></td><td><span class="tag lo">Бага</span></td><td><span class="tag hi">Өндөр</span></td><td><span class="tag hi">Өндөр</span></td><td><b>Өндөр</b></td></tr>
+    <tr><td><b>ADCS ESC1</b></td><td><span class="tag me">Дунд</span></td><td><span class="tag me">Дунд</span></td><td><span class="tag hi">Өндөр</span></td><td><span class="tag hi">Өндөр</span></td><td><b>Дунд-Өндөр</b></td></tr>
+    <tr><td><b>DCSync</b> (replication эрх)</td><td><span class="tag lo">Бага</span></td><td><span class="tag hi">Өндөр</span></td><td><span class="tag hi">Өндөр</span></td><td><span class="tag hi">DA</span></td><td><b>Эрх байвал</b></td></tr>
+    <tr><td><b>HasSession → cred theft</b></td><td><span class="tag hi">Өндөр</span></td><td><span class="tag hi">Өндөр</span></td><td><span class="tag me">Дунд</span></td><td><span class="tag hi">Өндөр</span></td><td><b>Бага</b></td></tr>
+  </tbody>
+</table>
+<p class="muted">Жинг тохируулж болно — engagement бүрд OpSec эрэмбэ өөр (жишээ: улаан баг чимээгүйд илүү жин өгнө).</p>
+
+<h2 id="output"><span class="n">06</span>Гаралтын жишээ</h2>
+<p class="lead">Оператор “би JDOE-г эзэмшсэн” гэж өгөхөд Tatar Path ийм гаралт өгнө. <b>Гаралт нь санал</b> — Tatar Path өөрөө довтлохгүй, оператор баталгаажуулж гүйцэтгэнэ.</p>
+<pre><span class="c"># Tatar Path — Эхлэх цэг (owned: JDOE@corp.local → зорилт: Tier Zero)</span>
+
+<span class="v">[1]</span> Kerberoast · SVC_SQL01  <span class="c"># Effort:Бага Noise:Бага Reliability:Дунд</span>
+    зам: JDOE → (MemberOf) IT_Staff → (Kerberoastable) SVC_SQL01 → (AdminTo) SQL01
+    <span class="k">nxc</span> ldap dc01 -u JDOE -p '***' --kerberoasting roast.txt
+    <span class="k">hashcat</span> -m 13100 roast.txt rockyou.txt
+    OpSec: TGS хүсэлт — event 4769, бага чимээтэй.
+
+<span class="v">[2]</span> ADCS ESC1 · Template "User"  <span class="c"># Effort:Дунд Impact:Өндөр</span>
+    зам: JDOE → (Enroll) VulnTemplate → (ESC1) → Domain Admin
+    <span class="k">certipy</span> find -u JDOE@corp.local -p '***' -dc-ip 10.0.0.1
+    <span class="k">certipy</span> req -u JDOE ... -template User -upn administrator@corp.local
+    OpSec: CA дээр лог үлдэнэ — дунд чимээтэй.
+
+<span class="v">[3]</span> ACL · WriteDacl on GROUP "Helpdesk"  <span class="c"># Effort:Дунд Reliability:Өндөр</span>
+    зам: JDOE → (WriteDacl) Helpdesk → (MemberOf) → Server admins
+    <span class="k">bloodyAD</span> --host dc01 -u JDOE -p '***' add genericAll Helpdesk JDOE
+    OpSec: DACL өөрчлөлт — 5136 идэвхтэй бол мэдэгдэнэ.</pre>
+<p class="muted">Дээрх <code>dc01</code>, <code>corp.local</code>, <code>10.0.0.1</code>, <code>-p '***'</code> нь зөвхөн жишээ агуулга — бодит гаралтад engagement-ийн бодит нэрсээр бөглөгдөнө.</p>
+
+<h2 id="mvp"><span class="n">07</span>MVP хүрээ</h2>
+<ol class="mvp">
+  <li>Neo4j (BloodHound дата) руу холбогдох — read-only Cypher.</li>
+  <li>Оператороос “owned” олонлог авах (нэг эсвэл хэд хэдэн объект).</li>
+  <li>Owned → Tier Zero хүртэлх замуудыг татаж, ирмэгийн жинлэлтээр эрэмбэлэх.</li>
+  <li>Эхний 5 “эхлэх цэг”-ийг зам + бэлэн команд + OpSec-тэйгээр CLI дээр хэвлэх.</li>
+  <li>(Дараа нь) Ollama reasoner — false path шүүх, тайлбар Монголоор өгөх.</li>
+</ol>
+<p class="muted">Цуглуулга (SharpHound), хадгалалт (Neo4j)-ыг дахин зохиохгүй — зөвхөн reasoning + гаралтын давхаргыг л барина. Python + neo4j driver дээр эхэлж болно.</p>
+
+<h2 id="roadmap"><span class="n">08</span>Замын зураг</h2>
+<div class="road">
+  <div class="ph"><div class="t">v0.1 · MVP</div><div class="h">CLI triage</div><p>Neo4j → эрэмбэ → эхний 5 цэг + команд.</p></div>
+  <div class="ph"><div class="t">v0.2</div><div class="h">Owned-aware NBA</div><p>Динамик “дараагийн алхам”, жин тохируулга.</p></div>
+  <div class="ph"><div class="t">v0.3</div><div class="h">Ollama reasoner</div><p>False path шүүх, Монгол тайлбар, офлайн.</p></div>
+  <div class="ph"><div class="t">v1.0</div><div class="h">Tatar интеграц</div><p>Tatar Path ↔ Reasoner/Reporting, тайлан гаргалт.</p></div>
+</div>
+
+<h2 id="ecosystem"><span class="n">09</span>Экосистем ба хүрээ</h2>
+<p class="lead">Tatar багана бүр “чамд X бэлэн байна → хаанаас эхлэх/юунд анхаарах вэ” гэсэн нэг хэв маягтай:</p>
+<pre>Triage  → Logs байна      → юу харах вэ
+Kuber   → Findings байна   → юунд итгэх вэ
+<span class="k">Path    → Paths байна      → алинаас эхлэх вэ</span>
+Flow    → Requests байна   → ямар функцийг ямар контекстээр тестлэх вэ
+Relay   → Protocol         → хэрхэн харилцах вэ</pre>
+<div class="callout">
+  <p style="margin:0 0 10px"><b>Хүрээ ба анхааруулга.</b> Tatar Path бол <b>triage давхарга — довтолгооны хэрэгсэл биш</b>:</p>
+  <p style="margin:0 0 8px">① <b>Өөрөө гүйцэтгэхгүй.</b> Эрэмбэлсэн саналууд ба бэлэн командыг хэвлэнэ; командыг оператор өөрөө хянаж, өөрөө гүйцэтгэнэ. Авто-exploit болговол ердийн scanner-ууд руу орж, өвөрмөц чанараа алдана.</p>
+  <p style="margin:0 0 8px">② <b>Зөвхөн бичгээр зөвшөөрөгдсөн engagement-д.</b> <code>owned</code> олонлогыг оператор өөрөө мэдүүлнэ — Tatar Path түүнийг олж авахгүй, шалгахгүй. Зөвшөөрлийн хүрээ, зорилтот домэйн, хугацааг engagement-ийн баримт тодорхойлно.</p>
+  <p style="margin:0">③ <b>Гаралт нь баталгаа биш.</b> Жинлэлт бол эвристик — false path гарна. §06-ийн <code>dc01</code>/<code>-p '***'</code> зэрэг нь жишээ placeholder. Оператор эрэмбийг мэргэжлийн шүүлтээрээ дахин үнэлнэ.</p>
+</div>
+</main>
+
+<footer>
+  Tatar Path · дизайн ноорог r1 · PSSA · хэлэлцэн хурцлах ноорог.
+</footer>
+</div>
+<script>
+  (function(){
+    var b=document.getElementById('tt'),r=document.documentElement;
+    function eff(){var t=r.getAttribute('data-theme');if(t==='dark'||t==='light')return t;
+      return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+    function sync(){b.setAttribute('aria-pressed',eff()==='dark'?'true':'false');}
+    sync();
+    b.addEventListener('click',function(){
+      var next=eff()==='dark'?'light':'dark';
+      r.setAttribute('data-theme',next);
+      try{localStorage.setItem('tatar-theme',next)}catch(e){}
+      sync();
+    });
+  })();
+</script>
+</body>
+</html>
