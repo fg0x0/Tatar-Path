@@ -1,0 +1,32 @@
+# This repo is a single self-contained HTML design document, so CI checks the
+# things that can silently break it: dead CSS, dead in-page links, a missing
+# print stylesheet. There is no build and no test suite to run.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  concept:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Concept document invariants
+        run: python3 scripts/check-concept.py docs/concept.html
+
+      - name: README links resolve
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          from pathlib import Path
+          src = Path("README.md").read_text(encoding="utf-8")
+          dead = [t for t in re.findall(r"\]\((?!https?:)([^)#]+)\)", src) if not Path(t).exists()]
+          print("dead relative link(s):", dead or "none")
+          sys.exit(1 if dead else 0)
+          PY
